@@ -1,5 +1,5 @@
 # Drona-Moving-Target-Defense-for-Cloud-Based-IT-Systems
-Moving Target Defense for Cloud-Based IT Systems (MTD CBITS) is a platform that 
+Moving Target Defense for Cloud-Based IT Systems is a platform that 
 automatically adapts multiple aspects of the network’s logical and physical configuration. 
 The platform is targeting OpenStack and is built on top of Drona. 
 Drona is a framework that captures the high-level user requirements and translates them into 
