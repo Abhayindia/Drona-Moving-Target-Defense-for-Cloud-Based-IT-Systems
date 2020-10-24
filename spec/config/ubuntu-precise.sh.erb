@@ -1,0 +1,84 @@
+#!/bin/bash
+##
+# Bootstrap script for Ubuntu Server 12.04 cloud instances
+##
+set -e -x
+
+echo 'ubuntu:K$uci$!' | chpasswd
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+service ssh restart
+
+export DEBIAN_FRONTEND=noninteractive
+<% if config[:proxy] %>
+export http_proxy="http://<%= config[:proxy][:host] %>:<%= config[:proxy][:port] %>/"
+<% end %>
+
+PUPPET_SSL=/var/lib/puppet/ssl
+
+##
+# Use the official Puppetlabs repository
+##
+curl -O http://apt.puppetlabs.com/puppetlabs-release-precise.deb
+dpkg -i puppetlabs-release-precise.deb
+
+apt-get update
+apt-get install -y -qq puppet mcollective mcollective-puppet-agent ruby-stomp git mcollective-package-client
+
+# Install facter through github after patch
+git clone https://github.com/puppetlabs/mcollective-facter-facts /root/facter
+mv /root/facter/facts /usr/share/mcollective/plugins/mcollective/
+
+
+##
+# Configure and restart the MCollective server
+##
+cat <<EOF > /etc/mcollective/server.cfg
+<%= mcollective_server_config %>
+EOF
+
+service mcollective restart
+
+##
+# Configure the hosts file
+##
+cat <<EOF >> /etc/hosts
+127.0.1.1 `hostname`
+<%= config[:puppet][:host] %> puppet
+EOF
+
+##
+# Copy generated Puppet certificates
+##
+mkdir -p $PUPPET_SSL/certs
+mkdir -p $PUPPET_SSL/private_keys
+
+cat <<EOF > $PUPPET_SSL/certs/<%= certname %>.pem
+<%= instance.cmt_details[:client_cert] %>
+EOF
+
+cat <<EOF > $PUPPET_SSL/certs/ca.pem
+<%= instance.cmt_details[:ca_cert] %>
+EOF
+
+cat <<EOF > $PUPPET_SSL/private_keys/<%= certname %>.pem
+<%= instance.cmt_details[:client_key] %>
+EOF
+
+##
+# Set permissions on copied files
+##
+chown -R puppet $PUPPET_SSL
+chmod 640 $PUPPET_SSL/private_keys/<%= certname %>.pem
+
+##
+# Set predictable certname for Puppet agent
+##
+cat <<EOF >> /etc/puppet/puppet.conf
+[agent]
+certname = <%= certname %>
+EOF
+
+##
+# Perform a first-time Puppet run
+##
+puppet agent -t
