@@ -1,0 +1,20 @@
+#!/bin/bash
+set -e
+
+#Pre-configured VM
+#Pull the latest version of the drona code and install dependent "libraries"
+cd ~/workspace/drona
+git pull
+bundle install
+
+#Update the orchestrator component of drona with the new information from drona.yml
+bin/setup-mcollective
+
+#Update the pre-installed drona CLI to the latest version
+gem update drona-cli
+
+#Update sample scenarios
+cd /etc/puppet
+sudo git pull 
+sudo ./install-modules
+cd ~/workspace/drona
